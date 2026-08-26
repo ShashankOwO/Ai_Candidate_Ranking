@@ -24,6 +24,7 @@ class User(Base):
     )
 
     candidates=relationship("Candidate",back_populates="user")
+    jobs=relationship("Job",back_populates="user")
     
 
 

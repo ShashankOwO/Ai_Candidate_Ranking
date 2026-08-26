@@ -25,3 +25,9 @@ class Candidate(Base):
 
     user=relationship("User",back_populates="candidates")
     resumes=relationship("Resume",back_populates="candidate")
+    candidate_skills=relationship("CandidateSkill",back_populates="candidate")
+    experiences=relationship("Experience",back_populates="candidate")
+    qualifications=relationship("Qualification",back_populates="candidate")
+    projects=relationship("Project",back_populates="candidate")
+    evaluation_results=relationship("EvaluationResult",back_populates="candidate")
+    rankings=relationship("CandidateRanking",back_populates="candidate")
