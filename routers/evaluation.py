@@ -359,7 +359,7 @@ def get_rankings(
     current_user: User = Depends(get_current_user)
 ):
 
-    # Check evaluation run
+  
     run = (
         db.query(EvaluationRun)
         .join(Job)
@@ -414,9 +414,7 @@ def get_candidate_evaluation(
     current_user: User = Depends(get_current_user)
 ):
 
-    # --------------------------------------------------
-    # Check evaluation run
-    # --------------------------------------------------
+   
 
     run = (
         db.query(EvaluationRun)
@@ -434,9 +432,7 @@ def get_candidate_evaluation(
             detail="Evaluation run not found"
         )
 
-    # --------------------------------------------------
-    # Check candidate
-    # --------------------------------------------------
+    
 
     candidate = (
         db.query(Candidate)
@@ -453,9 +449,6 @@ def get_candidate_evaluation(
             detail="Candidate not found"
         )
 
-    # --------------------------------------------------
-    # Get candidate ranking
-    # --------------------------------------------------
 
     ranking = (
         db.query(CandidateRanking)
@@ -472,9 +465,7 @@ def get_candidate_evaluation(
             detail="Candidate ranking not found"
         )
 
-    # --------------------------------------------------
-    # Get evaluation results
-    # --------------------------------------------------
+   
 
     results = (
         db.query(EvaluationResult)
