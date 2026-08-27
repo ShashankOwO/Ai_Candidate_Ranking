@@ -6,6 +6,12 @@ from sqlalchemy.orm import Session
 from database import getdb
 from models.candidate import Candidate
 from models.resume import Resume
+from services.resume_parser import extract_resume_text
+from services.candidate_extractor import extract_candidate_data
+from services.candidate_extractor import extract_candidate_data
+from services.candidate_persistence import save_candidate_data
+from utils.auth import get_current_user
+from models.user import User
 
 router=APIRouter(
     prefix="/resumes",
@@ -24,14 +30,9 @@ ALLOWED_TYPES={
 
 
 @router.post("/resume")
-async def upload_resume(candidate_id:int,file:UploadFile=File(...),db:Session=Depends(getdb)):
+async def upload_resume(file:UploadFile=File(...),db:Session=Depends(getdb),current_user:User=Depends(get_current_user)):
 
-    candidate=db.query(Candidate).filter(Candidate.candidate_id==candidate_id).first()
-    if not candidate:
-        raise HTTPException(
-            status_code=404,
-            detail="Candidate not found"
-        )
+    
 
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
@@ -52,12 +53,39 @@ async def upload_resume(candidate_id:int,file:UploadFile=File(...),db:Session=De
     with open(file_path,"wb") as output_file:
         output_file.write(file_content)
 
+
+    try:
+
+        raw_text=extract_resume_text(
+            file_path,file.content_type
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Could not extract resume text:{str(e)}"
+        )
+
+    candidate_data=extract_candidate_data(raw_text)
+
+    try:
+        candidate = save_candidate_data(
+            extracted_data=candidate_data,
+            user_id=current_user.user_id,
+            db=db
+        )
+    except Exception:
+        db.rollback()
+        raise
+
+    
+
     resume=Resume(
-        candidate_id=candidate_id,
+        candidate_id=candidate.candidate_id,
         file_name=file.filename,
         file_path=file_path,
         file_type=file.content_type,
-        file_size=len(file_content)
+        file_size=len(file_content),
+        raw_text=raw_text
     )
 
 
@@ -68,8 +96,9 @@ async def upload_resume(candidate_id:int,file:UploadFile=File(...),db:Session=De
     return{
         "message":"Resume Uploaded Successfully",
         "resume_id":resume.resume_id,
-        "candidate_id":candidate_id,
-        "filename":resume.file_name
+        "candidate_id":candidate.candidate_id,
+        "filename":resume.file_name,
+        "text_length":len(raw_text)
     }
 
 

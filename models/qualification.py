@@ -21,8 +21,8 @@ class Qualification(Base):
     )
     updated_at=Column(
         DateTime(timezone=True),
-        default=lambda:timezone(datetime.now(timezone.utc)),
-        onupdate=lambda:timezone(datetime.now(timezone.utc))
+        default=lambda:datetime.now(timezone.utc),
+        onupdate=lambda:datetime.now(timezone.utc)
     )
 
     candidate=relationship("Candidate",back_populates="qualifications")
