@@ -23,7 +23,7 @@ SessionLocal=sessionmaker(
 
 Base=declarative_base()
 
-def get_db():
+def getdb():
     db=SessionLocal()
 
     try:

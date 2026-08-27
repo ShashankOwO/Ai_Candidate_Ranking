@@ -8,6 +8,7 @@ from routers.skill import router as skill_router
 from routers.evaluation import router as evaluation_router
 import models
 from database import Base,engine
+from routers.candidate import router as candidate_router
 
 
 app=FastAPI()
@@ -22,7 +23,7 @@ app.include_router(job_router)
 app.include_router(job_skill_router)
 app.include_router(skill_router)
 app.include_router(evaluation_router)
-
+app.include_router(candidate_router)
 
 @app.get("/health")
 def check_health():
