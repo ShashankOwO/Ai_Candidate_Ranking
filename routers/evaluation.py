@@ -11,77 +11,43 @@ from models.evaluation_result import EvaluationResult
 from models.ranking import CandidateRanking
 from models.candidate import Candidate
 from datetime import datetime,  timezone
+from schemas.evaluation import (
+    EvaluationCriteriaCreate,
+    EvaluationCriteriaUpdate
+)
+from services.ranking_service import caluclate_candidate_score
 
 
 router = APIRouter(
-    prefix="/jobs",
+    prefix="/job",
     tags=["Evaluation"]
 )
 
 
 @router.post("/{job_id}/criteria")
-def create_evaluation_criteria(
-    job_id: int,
-    criteria_data: EvaluationCriteriaCreate,
-    db: Session = Depends(getdb),
-    current_user: User = Depends(get_current_user)
-):
+def create_evaluation_criteria(job_id: int,criteria_data: EvaluationCriteriaCreate,db: Session = Depends(getdb),current_user: User = Depends(get_current_user)):
 
 
-
-
-
-    job = (
-        db.query(Job)
-        .filter(
-            Job.job_id == job_id,
-            Job.user_id == current_user.user_id
-        )
-        .first()
-    )
+    job = (db.query(Job).filter(Job.job_id == job_id,Job.user_id == current_user.user_id).first())
 
     if not job:
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found"
-        )
+        raise HTTPException(status_code=404,detail="Job not found")
 
   
 
-    current_total = (
-        db.query(EvaluationCriteria)
-        .filter(
-            EvaluationCriteria.job_id == job_id
-        )
-        .with_entities(
-            EvaluationCriteria.weight
-        )
-        .all()
+    current_total = (db.query(EvaluationCriteria).filter(EvaluationCriteria.job_id == job_id).with_entities(EvaluationCriteria.weight).all()
     )
 
-    current_weight = sum(
-        weight[0]
-        for weight in current_total
-    )
+    current_weight = sum(weight[0] for weight in current_total)
 
   
 
     if current_weight + criteria_data.weight > 100:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Total weight cannot exceed 100. Current weight: {current_weight}"
-        )
+        raise HTTPException(status_code=400,detail=f"Total weight cannot exceed 100. Current weight: {current_weight}")
 
    
 
-    existing = (
-        db.query(EvaluationCriteria)
-        .filter(
-            EvaluationCriteria.job_id == job_id,
-            EvaluationCriteria.criteria_name == criteria_data.criteria_name
-        )
-        .first()
-    )
+    existing = (db.query(EvaluationCriteria).filter(EvaluationCriteria.job_id == job_id,EvaluationCriteria.criteria_name == criteria_data.criteria_name).first())
 
     if existing:
         raise HTTPException(
@@ -105,6 +71,7 @@ def create_evaluation_criteria(
     db.refresh(criterion)
 
     return {
+        
         "message": "Evaluation criterion created successfully",
         "criteria_id": criterion.criteria_id,
         "job_id": criterion.job_id,
@@ -123,28 +90,12 @@ def get_criteria(
     current_user: User = Depends(get_current_user)
 ):
 
-    job = (
-        db.query(Job)
-        .filter(
-            Job.job_id == job_id,
-            Job.user_id == current_user.user_id
-        )
-        .first()
-    )
+    job = (db.query(Job).filter(Job.job_id == job_id,Job.user_id == current_user.user_id).first())
 
     if not job:
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found"
-        )
+        raise HTTPException(status_code=404,detail="Job not found")
 
-    criteria = (
-        db.query(EvaluationCriteria)
-        .filter(
-            EvaluationCriteria.job_id == job_id
-        )
-        .all()
-    )
+    criteria = (db.query(EvaluationCriteria).filter(EvaluationCriteria.job_id == job_id).all())
 
     total_weight = sum(
         criterion.weight
@@ -162,12 +113,140 @@ def get_criteria(
 
 
 
+@router.put("/{job_id}/criteria/{criteria_id}")
+def update_criteria(
+    job_id: int,
+    criteria_id: int,
+    criteria_data: EvaluationCriteriaUpdate,
+    db: Session = Depends(getdb),
+    current_user: User = Depends(get_current_user)
+):
+
+    job = (db.query(Job).filter(Job.job_id == job_id,Job.user_id == current_user.user_id).first())
+
+    if not job:
+        raise HTTPException(status_code=404,detail="Job not found")
+
+    criterion = (db.query(EvaluationCriteria).filter(EvaluationCriteria.criteria_id == criteria_id,EvaluationCriteria.job_id == job_id).first())
+
+    if not criterion:
+        raise HTTPException(
+            status_code=404,
+            detail="Evaluation criterion not found"
+        )
+
+    new_weight = (
+        criteria_data.weight
+        if criteria_data.weight is not None
+        else criterion.weight
+    )
+
+    other_criteria = (
+        db.query(EvaluationCriteria)
+        .filter(
+            EvaluationCriteria.job_id == job_id,
+            EvaluationCriteria.criteria_id != criteria_id
+        )
+        .all()
+    )
+
+    other_weight = sum(
+        item.weight
+        for item in other_criteria
+    )
+
+    if other_weight + new_weight > 100:
+        raise HTTPException(
+            status_code=400,
+            detail="Total weight cannot exceed 100"
+        )
+
+    if criteria_data.criteria_name is not None:
+        criterion.criteria_name = criteria_data.criteria_name
+
+    if criteria_data.criteria_type is not None:
+        criterion.criteria_type = criteria_data.criteria_type
+
+    if criteria_data.criteria_description is not None:
+        criterion.criteria_description = (
+            criteria_data.criteria_description
+        )
+
+    if criteria_data.weight is not None:
+        criterion.weight = criteria_data.weight
+
+    if criteria_data.max_score is not None:
+        criterion.max_score = criteria_data.max_score
+
+    db.commit()
+    db.refresh(criterion)
+
+    return {
+        "message": "Evaluation criterion updated successfully",
+        "criteria_id": criterion.criteria_id,
+        "criteria_name": criterion.criteria_name,
+        "criteria_type": criterion.criteria_type,
+        "weight": criterion.weight,
+        "max_score": criterion.max_score
+    }
 
 
 
 
 
-@router.post("/jobs/{job_id}/rank")
+
+@router.delete("/{job_id}/criteria/{criteria_id}")
+def delete_criteria(
+    job_id: int,
+    criteria_id: int,
+    db: Session = Depends(getdb),
+    current_user: User = Depends(get_current_user)
+):
+
+    job = (
+        db.query(Job).filter(Job.job_id == job_id,Job.user_id == current_user.user_id).first()
+    )
+
+    if not job:
+        raise HTTPException(status_code=404,detail="Job not found")
+
+    criterion = (db.query(EvaluationCriteria).filter(EvaluationCriteria.criteria_id == criteria_id,EvaluationCriteria.job_id == job_id).first())
+
+    if not criterion:
+        raise HTTPException(status_code=404,detail="Evaluation criterion not found")
+
+    db.delete(criterion)
+    db.commit()
+
+    return {
+        "message": "Evaluation criterion deleted successfully",
+        "criteria_id": criteria_id
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@router.post("/{job_id}/rank")
 def rank_candidates(
     job_id: int,
     db: Session = Depends(getdb),
@@ -237,32 +316,21 @@ def rank_candidates(
 
             total_score = 0
 
-            for criterion in criteria:
+            final_score,results=caluclate_candidate_score(
+                candidate=candidate,
+                job=job,
+                criteria=criteria,
+                db=db
+            )
 
-                score = 0
-
-                reason = "Evaluation pending"
-
-                if criterion.max_score > 0:
-
-                    weighted_score = (
-                        score / criterion.max_score
-                    ) * criterion.weight
-
-                else:
-
-                    weighted_score = 0
-
-                total_score += weighted_score
-
-                result = EvaluationResult(
+            for result_data in results:
+                result=EvaluationResult(
                     evaluation_run_id=evaluation_run.evaluation_run_id,
                     candidate_id=candidate.candidate_id,
-                    criteria_id=criterion.criteria_id,
-                    score=score,
-                    reason=reason
+                    criteria_id=result_data["criteria_id"],
+                    score=result_data["score"],
+                    reason=result_data["reason"]
                 )
-
                 db.add(result)
 
             candidate_scores.append(
@@ -324,7 +392,12 @@ def rank_candidates(
     }
 
 
-@router.get("/jobs/{job_id}/evaluation-runs")
+
+
+
+
+
+@router.get("/{job_id}/evaluation-runs")
 def get_evaluation_runs(
     job_id: int,
     db: Session = Depends(getdb),
@@ -371,6 +444,11 @@ def get_evaluation_runs(
             for run in runs
         ]
     }
+
+
+
+
+
 
 
 @router.get("/evaluation-runs/{run_id}")
@@ -455,6 +533,17 @@ def get_rankings(
             for ranking in rankings
         ]
     }
+
+
+
+
+
+
+
+
+
+
+
 
 
 @router.get(
@@ -554,57 +643,3 @@ def get_candidate_evaluation(
 
 
 
-
-
-
-
-
-
-
-
-
-@router.delete("/{job_id}/criteria/{criteria_id}")
-def delete_criteria(
-    job_id: int,
-    criteria_id: int,
-    db: Session = Depends(getdb),
-    current_user: User = Depends(get_current_user)
-):
-
-    job = (
-        db.query(Job)
-        .filter(
-            Job.job_id == job_id,
-            Job.user_id == current_user.user_id
-        )
-        .first()
-    )
-
-    if not job:
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found"
-        )
-
-    criterion = (
-        db.query(EvaluationCriteria)
-        .filter(
-            EvaluationCriteria.criteria_id == criteria_id,
-            EvaluationCriteria.job_id == job_id
-        )
-        .first()
-    )
-
-    if not criterion:
-        raise HTTPException(
-            status_code=404,
-            detail="Evaluation criterion not found"
-        )
-
-    db.delete(criterion)
-    db.commit()
-
-    return {
-        "message": "Evaluation criterion deleted successfully",
-        "criteria_id": criteria_id
-    }

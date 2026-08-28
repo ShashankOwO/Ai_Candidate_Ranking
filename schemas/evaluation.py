@@ -1,5 +1,6 @@
 from pydantic import BaseModel,Field
 from datetime import datetime
+from pydantic import BaseModel, Field
 
 class EvaluationCriteriaCreate(BaseModel):
 
@@ -50,3 +51,34 @@ class CandidateEvaluationResponse(BaseModel):
     score: float
     status: str
     rank: int | None = None
+
+
+
+
+
+
+class EvaluationCriteriaUpdate(BaseModel):
+
+    criteria_name: str | None = Field(
+        default=None,
+        min_length=2,
+        max_length=100
+    )
+
+    criteria_type: str | None = Field(
+        default=None,
+        pattern="^(skills|experience|qualification|projects|custom)$"
+    )
+
+    criteria_description: str | None = None
+
+    weight: float | None = Field(
+        default=None,
+        gt=0,
+        le=100
+    )
+
+    max_score: float | None = Field(
+        default=None,
+        gt=0
+    )

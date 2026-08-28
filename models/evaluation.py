@@ -37,3 +37,8 @@ class EvaluationCriteria(Base):
 
     job=relationship("Job",back_populates="evaluation_criteria")
     results=relationship("EvaluationResult",back_populates="criteria")
+
+
+
+
+
