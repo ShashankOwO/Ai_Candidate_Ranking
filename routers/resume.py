@@ -29,7 +29,7 @@ ALLOWED_TYPES={
 
 
 
-@router.post("/resume")
+@router.post("/upload")
 async def upload_resume(file:UploadFile=File(...),db:Session=Depends(getdb),current_user:User=Depends(get_current_user)):
 
     

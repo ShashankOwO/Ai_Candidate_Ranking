@@ -15,7 +15,7 @@ router = APIRouter(
 
 
 @router.post(
-    "/",
+    "/create",
     response_model=SkillResponse
 )
 def create_skill(
@@ -48,3 +48,19 @@ def create_skill(
     db.refresh(skill)
 
     return skill
+
+
+
+
+
+@router.get("/all")
+def get_skills(
+    db: Session = Depends(getdb),
+    current_user: User = Depends(get_current_user)
+):
+
+    skills = (
+        db.query(Skill).order_by(Skill.skill_name).all()
+    )
+
+    return skills

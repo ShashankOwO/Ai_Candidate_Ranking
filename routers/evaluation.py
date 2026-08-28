@@ -114,6 +114,59 @@ def create_evaluation_criteria(
     }
 
 
+
+
+@router.get("/{job_id}/criteria")
+def get_criteria(
+    job_id: int,
+    db: Session = Depends(getdb),
+    current_user: User = Depends(get_current_user)
+):
+
+    job = (
+        db.query(Job)
+        .filter(
+            Job.job_id == job_id,
+            Job.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not job:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found"
+        )
+
+    criteria = (
+        db.query(EvaluationCriteria)
+        .filter(
+            EvaluationCriteria.job_id == job_id
+        )
+        .all()
+    )
+
+    total_weight = sum(
+        criterion.weight
+        for criterion in criteria
+    )
+
+    return {
+        "job_id": job_id,
+        "total_weight": total_weight,
+        "criteria": criteria
+    }
+
+
+
+
+
+
+
+
+
+
+
 @router.post("/jobs/{job_id}/rank")
 def rank_candidates(
     job_id: int,
@@ -497,4 +550,61 @@ def get_candidate_evaluation(
             }
             for result in results
         ]
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+@router.delete("/{job_id}/criteria/{criteria_id}")
+def delete_criteria(
+    job_id: int,
+    criteria_id: int,
+    db: Session = Depends(getdb),
+    current_user: User = Depends(get_current_user)
+):
+
+    job = (
+        db.query(Job)
+        .filter(
+            Job.job_id == job_id,
+            Job.user_id == current_user.user_id
+        )
+        .first()
+    )
+
+    if not job:
+        raise HTTPException(
+            status_code=404,
+            detail="Job not found"
+        )
+
+    criterion = (
+        db.query(EvaluationCriteria)
+        .filter(
+            EvaluationCriteria.criteria_id == criteria_id,
+            EvaluationCriteria.job_id == job_id
+        )
+        .first()
+    )
+
+    if not criterion:
+        raise HTTPException(
+            status_code=404,
+            detail="Evaluation criterion not found"
+        )
+
+    db.delete(criterion)
+    db.commit()
+
+    return {
+        "message": "Evaluation criterion deleted successfully",
+        "criteria_id": criteria_id
     }
