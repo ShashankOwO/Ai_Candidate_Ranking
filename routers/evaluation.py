@@ -15,7 +15,7 @@ from schemas.evaluation import (
     EvaluationCriteriaCreate,
     EvaluationCriteriaUpdate
 )
-from services.ranking_service import caluclate_candidate_score
+from services.ranking_service import calculate_candidate_scores
 
 
 router = APIRouter(
@@ -253,6 +253,7 @@ def rank_candidates(
     current_user: User = Depends(get_current_user)
 ):
 
+    # 1. Get job
     job = (
         db.query(Job)
         .filter(
@@ -268,6 +269,7 @@ def rank_candidates(
             detail="Job not found"
         )
 
+    # 2. Get criteria
     criteria = (
         db.query(EvaluationCriteria)
         .filter(
@@ -279,9 +281,25 @@ def rank_candidates(
     if not criteria:
         raise HTTPException(
             status_code=400,
-            detail="No evaluation criteria found for this job"
+            detail="No evaluation criteria found"
         )
 
+    # 3. Check total weight
+    total_weight = sum(
+        criterion.weight
+        for criterion in criteria
+    )
+
+    if total_weight != 100:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Evaluation criteria weights must total 100. "
+                f"Current total: {total_weight}"
+            )
+        )
+
+    # 4. Get candidates
     candidates = (
         db.query(Candidate)
         .filter(
@@ -296,54 +314,82 @@ def rank_candidates(
             detail="No candidates found"
         )
 
+    # 5. CREATE EVALUATION RUN
     evaluation_run = EvaluationRun(
         job_id=job_id,
         run_name=(
-            f"Ranking Run - "
+            "Ranking Run - "
             f"{datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')}"
         ),
         total_candidates=len(candidates)
     )
 
     db.add(evaluation_run)
+
+    # Important:
+    # Generates evaluation_run_id before we create results
     db.flush()
 
     try:
 
+        # This will temporarily hold
+        # candidate_id + final_score
         candidate_scores = []
+
+        # =================================================
+        # 6. EVALUATE EACH CANDIDATE
+        # =================================================
 
         for candidate in candidates:
 
-            total_score = 0
-
-            final_score,results=caluclate_candidate_score(
+            final_score, results = calculate_candidate_scores(
                 candidate=candidate,
                 job=job,
                 criteria=criteria,
                 db=db
             )
 
+            # =============================================
+            # 7. SAVE EACH CRITERION RESULT
+            # =============================================
+
             for result_data in results:
-                result=EvaluationResult(
-                    evaluation_run_id=evaluation_run.evaluation_run_id,
+
+                evaluation_result = EvaluationResult(
+                    evaluation_run_id=(
+                        evaluation_run.evaluation_run_id
+                    ),
                     candidate_id=candidate.candidate_id,
                     criteria_id=result_data["criteria_id"],
                     score=result_data["score"],
                     reason=result_data["reason"]
                 )
-                db.add(result)
+
+                db.add(evaluation_result)
+
+            # =============================================
+            # 8. STORE FINAL SCORE TEMPORARILY
+            # =============================================
 
             candidate_scores.append(
                 {
                     "candidate_id": candidate.candidate_id,
-                    "final_score": total_score
+                    "final_score": final_score
                 }
             )
+
+        # =================================================
+        # 9. SORT CANDIDATES
+        # =================================================
 
         candidate_scores.sort(
             key=lambda x: x["final_score"],
             reverse=True
         )
+
+        # =================================================
+        # 10. CREATE FINAL RANKINGS
+        # =================================================
 
         for position, data in enumerate(
             candidate_scores,
@@ -354,24 +400,34 @@ def rank_candidates(
 
             if final_score >= 80:
                 recommendation = "Strong Match"
+
             elif final_score >= 60:
                 recommendation = "Good Match"
+
             elif final_score >= 40:
                 recommendation = "Potential Match"
+
             else:
                 recommendation = "Not Recommended"
 
             ranking = CandidateRanking(
-                evaluation_run_id=evaluation_run.evaluation_run_id,
+                evaluation_run_id=(
+                    evaluation_run.evaluation_run_id
+                ),
                 candidate_id=data["candidate_id"],
                 final_score=final_score,
-                rank_position=str(position),
+                rank_position=position,
                 recommendation=recommendation
             )
 
             db.add(ranking)
 
+        # =================================================
+        # 11. SAVE EVERYTHING
+        # =================================================
+
         db.commit()
+
         db.refresh(evaluation_run)
 
     except Exception as e:
@@ -383,6 +439,10 @@ def rank_candidates(
             detail=f"Ranking failed: {str(e)}"
         )
 
+    # =====================================================
+    # 12. RESPONSE
+    # =====================================================
+
     return {
         "message": "Candidate ranking completed successfully",
         "evaluation_run_id": evaluation_run.evaluation_run_id,
@@ -390,8 +450,6 @@ def rank_candidates(
         "run_name": evaluation_run.run_name,
         "total_candidates": evaluation_run.total_candidates
     }
-
-
 
 
 

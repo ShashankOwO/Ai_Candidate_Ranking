@@ -24,10 +24,10 @@ class Job(Base):
         default=lambda:datetime.now(timezone.utc)
     )
 
-    updated_at=Column(
-        DateTime(timezone=True),
-        default=lambda:datetime.now(timezone.utc),
-        on_update=lambda:datetime.now(timezone.utc)
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow
     )
 
 

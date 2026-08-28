@@ -31,7 +31,7 @@ class EvaluationCriteria(Base):
     updated_at=Column(
         DateTime(timezone=True),
         default=lambda:datetime.now(timezone.utc),
-        onupdate=datetime.now(timezone.utc)
+        onupdate=lambda: datetime.now(timezone.utc)
     )
 
 
