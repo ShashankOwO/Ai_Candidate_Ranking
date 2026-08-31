@@ -15,6 +15,10 @@ router = APIRouter(
 )
 
 
+
+
+
+
 @router.post("/{job_id}/skills")
 def add_job_skill(
     job_id: int,

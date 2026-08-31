@@ -10,12 +10,21 @@ import models
 from database import Base,engine
 from routers.candidate import router as candidate_router
 from routers.evaluation import router as evaluation_router
-    
+from fastapi.middleware.cors import CORSMiddleware    
 
 
 app=FastAPI()
 
-Base.metadata.create_all(bind=engine)
+#Base.metadata.create_all(bind=engine)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, restrict to your frontend URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 

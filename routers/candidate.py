@@ -5,6 +5,7 @@ from database import getdb
 from models.candidate import Candidate
 from models.user import User
 from models.skill import CandidateSkill,Skill
+from models.project import Project
 from schemas.candidate import (
     CandidateCreate,
     CandidateResponse,
@@ -14,7 +15,7 @@ from models.experience import Experience
 from models.qualification import Qualification
 from utils.auth import get_current_user
 from schemas.experience import ExperienceCreate
-from schemas.project import ProjectCreate
+from schemas.project import ProjectCreate,ProjectResponse
 from schemas.qualification import QualificationCreate
 from schemas.skill import CandidateSkillCreate
 
@@ -483,3 +484,27 @@ def add_project(
     db.refresh(project)
 
     return project
+
+
+
+@router.get(
+    "/{id}/projects",
+    response_model=list[ProjectResponse]
+)
+def get_candidate_projects(
+    id: int,
+    db: Session = Depends(getdb)
+):
+    candidate = (
+        db.query(Candidate)
+        .filter(Candidate.candidate_id == id)
+        .first()
+    )
+
+    if not candidate:
+        raise HTTPException(
+            status_code=404,
+            detail="Candidate not found"
+        )
+
+    return candidate.projects
