@@ -14,3 +14,12 @@ class SkillResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+from pydantic import BaseModel
+
+
+class CandidateSkillCreate(BaseModel):
+    skill_id: int
+    proficiency: str
+    years_experience: float

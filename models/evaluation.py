@@ -31,9 +31,14 @@ class EvaluationCriteria(Base):
     updated_at=Column(
         DateTime(timezone=True),
         default=lambda:datetime.now(timezone.utc),
-        onupdate=datetime.now(timezone.utc)
+        onupdate=lambda: datetime.now(timezone.utc)
     )
 
 
     job=relationship("Job",back_populates="evaluation_criteria")
     results=relationship("EvaluationResult",back_populates="criteria")
+
+
+
+
+
