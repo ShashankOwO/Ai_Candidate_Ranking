@@ -19,7 +19,7 @@ llm=ChatGroq(
 
 
 
-structured_llm=llm.with_structured_output(CandidateExtraction)
+structured_llm=llm.with_structured_output(CandidateExtraction,method="function_calling",)
 
 
 def extract_candidate_data(resume_text:str)->CandidateExtraction:
