@@ -5,6 +5,7 @@ import models
 from database import Base, engine
 from routers.auth import router as auth_router
 from routers.candidate import router as candidate_router
+from routers.chatbot import router as chatbot_router
 from routers.evaluation import router as evaluation_router
 from routers.job import router as job_router
 from routers.job_skill import router as job_skill_router
@@ -32,6 +33,7 @@ app.include_router(job_skill_router)
 app.include_router(skill_router)
 app.include_router(evaluation_router)
 app.include_router(candidate_router)
+app.include_router(chatbot_router)
 
 
 @app.get("/health")
